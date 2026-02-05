@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const path = require("path");
 
 const app = express();
 app.use(cors());
@@ -11,8 +12,6 @@ app.use(express.json());
 // ======================
 // Configuration & DB
 // ======================
-
-// Use process.env for security. On Vercel, you will add these in the dashboard.
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://231370129_db_user:Sohaib7890@cluster0.w19wget.mongodb.net/hotel_booking";
 const JWT_SECRET = process.env.JWT_SECRET || "secret123";
 
@@ -24,7 +23,6 @@ mongoose
 // ======================
 // Schemas
 // ======================
-
 const userSchema = new mongoose.Schema({
   name: String,
   email: { type: String, unique: true, required: true },
@@ -60,7 +58,6 @@ const Booking = mongoose.models.bookings || mongoose.model("bookings", bookingSc
 // ======================
 // Middleware
 // ======================
-
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization;
   if (!token) return res.status(401).json({ message: "No token" });
@@ -83,7 +80,6 @@ const adminMiddleware = (req, res, next) => {
 // ======================
 // Auth Routes
 // ======================
-
 app.post("/register", async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
@@ -126,7 +122,6 @@ app.post("/login", async (req, res) => {
 // ======================
 // Room & Booking Routes
 // ======================
-
 app.get("/rooms", async (req, res) => {
   const rooms = await Room.find();
   res.json(rooms);
@@ -177,7 +172,6 @@ app.get("/my-bookings", authMiddleware, async (req, res) => {
 // ======================
 // Admin Routes
 // ======================
-
 app.post("/admin/rooms", authMiddleware, adminMiddleware, async (req, res) => {
   const room = await Room.create(req.body);
   res.json(room);
@@ -193,15 +187,28 @@ app.get("/admin/bookings", authMiddleware, adminMiddleware, async (req, res) => 
   res.json(bookings);
 });
 
+// ==========================================
+// STATIC FRONTEND SERVING
+// ==========================================
+// Pointing to 'Frontend/dist' based on your folder structure
+const frontendPath = path.join(__dirname, "Frontend/dist");
+app.use(express.static(frontendPath));
+
+// Catch-all route to serve index.html for React Router
+app.get("*", (req, res) => {
+  res.sendFile(path.join(frontendPath, "index.html"), (err) => {
+    if (err) {
+      res.status(500).send("Frontend build folder (Frontend/dist) not found. Run 'npm run build' inside Frontend folder.");
+    }
+  });
+});
+
 // ======================
 // Vercel Deployment Export
 // ======================
-
-// Only listen if we are running locally
 if (process.env.NODE_ENV !== 'production') {
     const port = 5000;
     app.listen(port, () => console.log(`Local server on http://localhost:${port}`));
 }
 
-// THIS IS CRITICAL FOR VERCEL
 module.exports = app;
